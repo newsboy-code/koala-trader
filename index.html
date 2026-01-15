@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐨 Newsboy Koala Trader - P2P Card Game</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        /* =========================
+           전역 스타일 및 기본 설정
+           ========================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        /* =========================
+           헤더 영역 (신문사 컨셉)
+           ========================= */
+        header {
+            background: #fff;
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+
+        /* =========================
+           연결 화면 (P2P 설정)
+           ========================= */
+        #connection-screen {
+            background: #fff;
+            width: 100%;
+            max-width: 600px;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        #connection-screen h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .connection-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .connection-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .connection-info.active {
+            display: block;
+        }
+
+        .peer-id-display {
+            font-size: 1.5em;
+            color: #667eea;
+            font-weight: bold;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+
+        /* =========================
+           게임 화면 메인 레이아웃
+           ========================= */
+        #game-screen {
+            display: none;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        #game-screen.active {
+            display: block;
+        }
+
+        /* =========================
+           점수판 및 게임 정보
+           ========================= */
+        .scoreboard {
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .player-score {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .player-score.current-turn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .player-score h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .score-value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .game-info {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .token-display {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .token-item {
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 1.2em;
+        }
+
+        /* =========================
+           게임판 레이아웃
+           ========================= */
+        .game-board {
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .opponent-area,
+        .market-area,
+        .player-area {
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .area-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        .card-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            min-height: 80px;
+        }
+
+        /* =========================
+           카드 스타일
+           ========================= */
+        .card {
+            width: 70px;
+            height: 100px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 3px solid #dee2e6;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: translateY(-10px) scale(1.1);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .card.disabled:hover {
+            transform: none;
+        }
+
+        /* 카드 뒷면 (상대 손패) */
+        .card.back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1em;
+        }
+
+        /* =========================
+           액션 버튼
+           ========================= */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .action-btn.take {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .action-btn.exchange {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+
+        .action-btn.sell {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
+        .action-btn.koala-rush {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            color: #333;
+        }
+
+        .action-btn.end-turn {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* =========================
+           모달 (판매 UI)
+           ========================= */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .modal-content h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .sell-option {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sell-option:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .sell-option.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .close-modal {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        /* =========================
+           반응형 디자인 (모바일)
+           ========================= */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .scoreboard {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                width: 60px;
+                height: 85px;
+                font-size: 2em;
+            }
+
+            .action-btn {
+                padding: 12px 20px;
+                font-size: 1em;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 1em;
+            }
+
+            #connection-screen {
+                padding: 20px;
+            }
+        }
+
+        /* =========================
+           로딩 애니메이션
+           ========================= */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* =========================
+           게임 종료 화면
+           ========================= */
+        .game-over {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .game-over h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .game-over .winner {
+            font-size: 3em;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header>
+        <h1>🐨 Newsboy Koala Trader</h1>
+        <p>📰 기자들의 특종 경쟁! 자이푸르 룰 기반 P2P 카드 게임</p>
+    </header>
+
+    <!-- 연결 화면 -->
+    <div id="connection-screen">
+        <h2>🔗 게임 연결</h2>
+        <div class="connection-buttons">
+            <button class="btn btn-primary" onclick="createGame()">🎮 게임 만들기 (Host)</button>
+            <button class="btn btn-secondary" onclick="showJoinForm()">🚀 게임 참가 (Guest)</button>
+        </div>
+
+        <!-- Host 정보 표시 -->
+        <div id="host-info" class="connection-info">
+            <p>당신의 게임 ID:</p>
+            <div class="peer-id-display" id="my-peer-id">연결 중...</div>
+            <p>상대방이 이 ID로 접속할 때까지 기다려주세요.</p>
+            <div class="status-message" id="host-status"></div>
+        </div>
+
+        <!-- Guest 입력 폼 -->
+        <div id="guest-form" class="connection-info">
+            <p>Host의 게임 ID를 입력하세요:</p>
+            <input type="text" id="peer-id-input" placeholder="Host ID 입력">
+            <button class="btn btn-primary" onclick="joinGame()">접속하기</button>
+            <div class="status-message" id="guest-status"></div>
+        </div>
+    </div>
+
+    <!-- 게임 화면 -->
+    <div id="game-screen">
+        <!-- 점수판 -->
+        <div class="scoreboard">
+            <div class="player-score" id="player1-score">
+                <h3 id="player1-name">플레이어 1</h3>
+                <div class="score-value">🟡 <span id="p1-score">0</span></div>
+                <div>🏆 <span id="p1-seals">0</span></div>
+            </div>
+            <div class="player-score" id="player2-score">
+                <h3 id="player2-name">플레이어 2</h3>
+                <div class="score-value">🟡 <span id="p2-score">0</span></div>
+                <div>🏆 <span id="p2-seals">0</span></div>
+            </div>
+        </div>
+
+        <!-- 게임 정보 -->
+        <div class="game-info">
+            <div><strong>덱 남은 카드:</strong> <span id="deck-count">40</span>장</div>
+            <div class="token-display">
+                <div class="token-item">💎 <span id="token-diamond">5</span></div>
+                <div class="token-item">💰 <span id="token-gold">5</span></div>
+                <div class="token-item">🥈 <span id="token-silver">5</span></div>
+                <div class="token-item">🧶 <span id="token-cloth">7</span></div>
+                <div class="token-item">🌶️ <span id="token-spice">7</span></div>
+                <div class="token-item">👜 <span id="token-leather">7</span></div>
+            </div>
+        </div>
+
+        <!-- 게임판 -->
+        <div class="game-board">
+            <!-- 상대 영역 -->
+            <div class="opponent-area">
+                <div class="area-title">🎩 상대 손패</div>
+                <div class="card-container" id="opponent-hand"></div>
+            </div>
+
+            <!-- 시장 -->
+            <div class="market-area">
+                <div class="area-title">🏪 시장</div>
+                <div class="card-container" id="market"></div>
+            </div>
+
+            <!-- 내 영역 -->
+            <div class="player-area">
+                <div class="area-title">✋ 내 손패</div>
+                <div class="card-container" id="my-hand"></div>
+            </div>
+
+            <!-- 액션 버튼 -->
+            <div class="action-buttons">
+                <button class="action-btn take" onclick="takeCard()">📥 가져오기</button>
+                <button class="action-btn exchange" onclick="exchangeCards()">🔄 교환하기</button>
+                <button class="action-btn sell" onclick="openSellModal()">💰 판매하기</button>
+                <button class="action-btn koala-rush" onclick="koalaRush()">🐨 코알라 몰이</button>
+                <button class="action-btn end-turn" onclick="endTurn()">✅ 턴 종료</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 판매 모달 -->
+    <div id="sell-modal" class="modal">
+        <div class="modal-content">
+            <h2>💰 판매할 상품 선택</h2>
+            <div id="sell-options"></div>
+            <button class="btn btn-primary close-modal" onclick="closeSellModal()">취소</button>
+        </div>
+    </div>
+
+    <script>
+        // =============================================
+        // 전역 변수 및 상수 정의
+        // =============================================
+
+        /**
+         * 카드 타입별 이모지 매핑
+         * - koala: 특수 교환 카드
+         * - diamond, gold, silver: 고가 상품 (2장 이상 판매 필요)
+         * - cloth, spice, leather: 일반 상품 (1장부터 판매 가능)
+         */
+        const CARD_EMOJI = {
+            koala: '🐨',
+            diamond: '💎',
+            gold: '💰',
+            silver: '🥈',
+            cloth: '🧶',
+            spice: '🌶️',
+            leather: '👜'
+        };
+
+        /**
+         * 상품별 토큰 개수 (게임 시작 시 각 상품의 토큰 수)
+         */
+        const INITIAL_TOKENS = {
+            diamond: 5,
+            gold: 5,
+            silver: 5,
+            cloth: 7,
+            spice: 7,
+            leather: 7
+        };
+
+        /**
+         * 상품별 토큰 점수 분포
+         * - 고가 상품일수록 높은 점수 토큰이 많음
+         * - 배열 순서대로 토큰이 분배됨 (첫 판매자가 높은 점수 획득)
+         */
+        const TOKEN_VALUES = {
+            diamond: [7, 7, 5, 5, 5],
+            gold: [6, 6, 5, 5, 5],
+            silver: [5, 5, 5, 5, 5],
+            cloth: [5, 3, 3, 2, 2, 1, 1],
+            spice: [5, 3, 3, 2, 2, 1, 1],
+            leather: [4, 3, 2, 1, 1, 1, 1]
+        };
+
+        /**
+         * 보너스 점수 (한 번에 여러 장 판매 시 추가 점수)
+         * - 3장: 1점, 4장: 4점, 5장: 8점, 6장: 12점, 7장: 16점
+         */
+        const BONUS_POINTS = {
+            3: 1,
+            4: 4,
+            5: 8,
+            6: 12,
+            7: 16
+        };
+
+        // PeerJS 관련 변수
+        let peer = null;              // PeerJS 인스턴스
+        let connection = null;        // 현재 P2P 연결
+        let isHost = false;           // Host 여부 (true: Host, false: Guest)
+        let myPlayerId = null;        // 내 플레이어 번호 (1 또는 2)
+
+        // 게임 상태 객체 (Host가 마스터 데이터 보유)
+        let gameState = {
+            deck: [],                 // 덱 (남은 카드들)
+            market: [],               // 시장 카드 (5장)
+            player1Hand: [],          // 플레이어 1 손패
+            player2Hand: [],          // 플레이어 2 손패
+            player1Score: 0,          // 플레이어 1 점수
+            player2Score: 0,          // 플레이어 2 점수
+            player1Seals: 0,          // 플레이어 1 인장 수
+            player2Seals: 0,          // 플레이어 2 인장 수
+            tokens: JSON.parse(JSON.stringify(INITIAL_TOKENS)), // 남은 토큰
+            currentTurn: 1,           // 현재 턴 플레이어 (1 또는 2)
+            selectedCards: {          // 선택된 카드 (UI 상태)
+                myHand: [],
+                market: []
+            },
+            actionTaken: false,       // 이번 턴에 액션을 했는지 여부
+            gameOver: false           // 게임 종료 여부
+        };
+
+        // =============================================
+        // P2P 연결 관리 함수
+        // =============================================
+
+        /**
+         * 게임 만들기 (Host)
+         * - PeerJS 서버에 연결하고 고유 ID 생성
+         * - Guest의 접속을 기다림
+         */
+        function createGame() {
+            // PeerJS 인스턴스 생성 (자동 ID 생성)
+            peer = new Peer();
+            isHost = true;
+            myPlayerId = 1;
+
+            // PeerJS 서버 연결 성공 시
+            peer.on('open', (id) => {
+                console.log('Host Peer ID:', id);
+                document.getElementById('my-peer-id').textContent = id;
+                document.getElementById('host-info').classList.add('active');
+                showStatus('host-status', '상대방의 접속을 기다리는 중...', 'info');
+            });
+
+            // Guest가 연결 시도할 때
+            peer.on('connection', (conn) => {
+                connection = conn;
+                setupConnection();
+                showStatus('host-status', '✅ 상대방이 연결되었습니다!', 'success');
+                
+                // 게임 초기화 및 시작
+                setTimeout(() => {
+                    initializeGame();
+                    startGame();
+                }, 1000);
+            });
+
+            // 에러 처리
+            peer.on('error', (err) => {
+                console.error('Peer Error:', err);
+                showStatus('host-status', `❌ 연결 오류: ${err.type}`, 'error');
+            });
+        }
+
+        /**
+         * 게임 참가 폼 표시 (Guest)
+         */
+        function showJoinForm() {
+            document.getElementById('guest-form').classList.add('active');
+        }
+
+        /**
+         * 게임 참가하기 (Guest)
+         * - Host의 ID로 연결 시도
+         */
+        function joinGame() {
+            const hostId = document.getElementById('peer-id-input').value.trim();
+            
+            if (!hostId) {
+                showStatus('guest-status', '❌ Host ID를 입력해주세요.', 'error');
+                return;
+            }
+
+            // PeerJS 인스턴스 생성
+            peer = new Peer();
+            isHost = false;
+            myPlayerId = 2;
+
+            // PeerJS 서버 연결 성공 시
+            peer.on('open', (id) => {
+                console.log('Guest Peer ID:', id);
+                showStatus('guest-status', '연결 중...', 'info');
+
+                // Host에게 연결 시도
+                connection = peer.connect(hostId, {
+                    reliable: true
+                });
+
+                setupConnection();
+            });
+
+            // 에러 처리
+            peer.on('error', (err) => {
+                console.error('Peer Error:', err);
+                showStatus('guest-status', `❌ 연결 오류: ${err.type}. Host ID를 확인해주세요.`, 'error');
+            });
+        }
+
+        /**
+         * P2P 연결 설정
+         * - 연결 성공/실패 이벤트 처리
+         * - 데이터 수신 이벤트 처리
+         */
+        function setupConnection() {
+            // 연결 성공 시
+            connection.on('open', () => {
+                console.log('Connection established!');
+                if (!isHost) {
+                    showStatus('guest-status', '✅ 연결 성공! 게임 시작을 기다리는 중...', 'success');
+                }
+            });
+
+            // 데이터 수신 시
+            connection.on('data', (data) => {
+                handleReceivedData(data);
+            });
+
+            // 연결 종료 시
+            connection.on('close', () => {
+                alert('❌ 상대방과의 연결이 끊어졌습니다.');
+                location.reload();
+            });
+
+            // 에러 발생 시
+            connection.on('error', (err) => {
+                console.error('Connection Error:', err);
+                alert(`❌ 연결 오류: ${err}`);
+            });
+        }
+
+        /**
+         * 수신된 데이터 처리
+         * @param {Object} data - 수신된 데이터 객체
+         */
+        function handleReceivedData(data) {
+            console.log('Received data:', data);
+
+            // 데이터 타입별 처리
+            switch(data.type) {
+                case 'gameState':
+                    // 전체 게임 상태 동기화
+                    gameState = data.state;
+                    renderGame();
+                    break;
+                case 'action':
+                    // Guest의 액션을 Host가 처리
+                    if (isHost) {
+                        handleGuestAction(data.action);
+                    }
+                    break;
+            }
+        }
+
+        /**
+         * 게임 상태 전송 (Host → Guest)
+         */
+        function sendGameState() {
+            if (connection && connection.open) {
+                connection.send({
+                    type: 'gameState',
+                    state: gameState
+                });
+            }
+        }
+
+        /**
+         * 액션 전송 (Guest → Host)
+         * @param {Object} action - 액션 객체
+         */
+        function sendAction(action) {
+            if (connection && connection.open) {
+                connection.send({
+                    type: 'action',
+                    action: action
+                });
+            }
+        }
+
+        /**
+         * 상태 메시지 표시
+         * @param {string} elementId - 메시지를 표시할 요소 ID
+         * @param {string} message - 표시할 메시지
+         * @param {string} type - 메시지 타입 (success, error, info)
+         */
+        function showStatus(elementId, message, type) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+        }
+
+        // =============================================
+        // 게임 초기화 및 시작
+        // =============================================
+
+        /**
+         * 게임 초기화 (Host만 실행)
+         * - 덱 생성 및 셔플
+         * - 초기 카드 분배
+         * - 시장 설정
+         */
+        function initializeGame() {
+            if (!isHost) return;
+
+            console.log('Initializing game...');
+
+            // 덱 생성
+            gameState.deck = createDeck();
+            
+            // 셔플
+            shuffleDeck(gameState.deck);
+
+            // 초기 손패 분배 (각 플레이어 5장)
+            gameState.player1Hand = gameState.deck.splice(0, 5);
+            gameState.player2Hand = gameState.deck.splice(0, 5);
+
+            // 시장 설정 (5장, 코알라 3장 보장)
+            gameState.market = ['koala', 'koala', 'koala'];
+            
+            // 나머지 2장은 일반 상품 카드
+            let remainingCards = gameState.deck.filter(c => c !== 'koala');
+            gameState.market.push(remainingCards[0], remainingCards[1]);
+            gameState.deck = gameState.deck.filter(c => 
+                c !== remainingCards[0] || gameState.deck.indexOf(c) !== gameState.deck.indexOf(remainingCards[0])
+            ).filter(c => 
+                c !== remainingCards[1] || gameState.deck.indexOf(c) !== gameState.deck.indexOf(remainingCards[1])
+            );
+
+            // 토큰 초기화
+            gameState.tokens = JSON.parse(JSON.stringify(INITIAL_TOKENS));
+
+            // 게임 상태 초기화
+            gameState.player1Score = 0;
+            gameState.player2Score = 0;
+            gameState.player1Seals = 0;
+            gameState.player2Seals = 0;
+            gameState.currentTurn = 1;
+            gameState.actionTaken = false;
+            gameState.gameOver = false;
+
+            console.log('Game initialized:', gameState);
+        }
+
+        /**
+         * 덱 생성
+         * @returns {Array} 생성된 덱 배열
+         */
+        function createDeck() {
+            const deck = [];
+
+            // 상품 카드 추가
+            const goods = [
+                { type: 'diamond', count: 6 },
+                { type: 'gold', count: 6 },
+                { type: 'silver', count: 6 },
+                { type: 'cloth', count: 8 },
+                { type: 'spice', count: 8 },
+                { type: 'leather', count: 10 }
+            ];
+
+            goods.forEach(good => {
+                for (let i = 0; i < good.count; i++) {
+                    deck.push(good.type);
+                }
+            });
+
+            // 코알라 카드 추가 (11장)
+            for (let i = 0; i < 11; i++) {
+                deck.push('koala');
+            }
+
+            return deck;
+        }
+
+        /**
+         * 덱 셔플 (Fisher-Yates 알고리즘)
+         * @param {Array} deck - 셔플할 덱 배열
+         */
+        function shuffleDeck(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        /**
+         * 게임 시작
+         * - 연결 화면 숨기고 게임 화면 표시
+         * - 게임 렌더링
+         */
+        function startGame() {
+            document.getElementById('connection-screen').style.display = 'none';
+            document.getElementById('game-screen').classList.add('active');
+            
+            // 플레이어 이름 설정
+            document.getElementById('player1-name').textContent = isHost ? '나 (Host)' : '상대 (Host)';
+            document.getElementById('player2-name').textContent = isHost ? '상대 (Guest)' : '나 (Guest)';
+
+            renderGame();
+            
+            // Host가 게임 상태 전송
+            if (isHost) {
+                sendGameState();
+            }
+        }
+
+        // =============================================
+        // 게임 렌더링
+        // =============================================
+
+        /**
+         * 게임 화면 렌더링
+         * - 모든 게임 요소를 현재 gameState에 맞춰 화면에 그림
+         */
+        function renderGame() {
+            // 점수 업데이트
+            document.getElementById('p1-score').textContent = gameState.player1Score;
+            document.getElementById('p2-score').textContent = gameState.player2Score;
+            document.getElementById('p1-seals').textContent = gameState.player1Seals;
+            document.getElementById('p2-seals').textContent = gameState.player2Seals;
+
+            // 현재 턴 표시
+            const p1ScoreEl = document.getElementById('player1-score');
+            const p2ScoreEl = document.getElementById('player2-score');
+            
+            if (gameState.currentTurn === 1) {
+                p1ScoreEl.classList.add('current-turn');
+                p2ScoreEl.classList.remove('current-turn');
+            } else {
+                p1ScoreEl.classList.remove('current-turn');
+                p2ScoreEl.classList.add('current-turn');
+            }
+
+            // 덱 및 토큰 정보
+            document.getElementById('deck-count').textContent = gameState.deck.length;
+            document.getElementById('token-diamond').textContent = gameState.tokens.diamond;
+            document.getElementById('token-gold').textContent = gameState.tokens.gold;
+            document.getElementById('token-silver').textContent = gameState.tokens.silver;
+            document.getElementById('token-cloth').textContent = gameState.tokens.cloth;
+            document.getElementById('token-spice').textContent = gameState.tokens.spice;
+            document.getElementById('token-leather').textContent = gameState.tokens.leather;
+
+            // 카드 렌더링
+            renderHand();
+            renderMarket();
+            renderOpponentHand();
+
+            // 버튼 활성화/비활성화
+            updateButtonStates();
+
+            // 게임 종료 체크
+            if (gameState.gameOver) {
+                showGameOver();
+            }
+        }
+
+        /**
+         * 내 손패 렌더링
+         */
+        function renderHand() {
+            const handEl = document.getElementById('my-hand');
+            handEl.innerHTML = '';
+
+            const myHand = myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand;
+
+            myHand.forEach((card, index) => {
+                const cardEl = createCardElement(card, index, 'hand');
+                handEl.appendChild(cardEl);
+            });
+        }
+
+        /**
+         * 시장 렌더링
+         */
+        function renderMarket() {
+            const marketEl = document.getElementById('market');
+            marketEl.innerHTML = '';
+
+            gameState.market.forEach((card, index) => {
+                const cardEl = createCardElement(card, index, 'market');
+                marketEl.appendChild(cardEl);
+            });
+        }
+
+        /**
+         * 상대 손패 렌더링 (뒷면으로 표시)
+         */
+        function renderOpponentHand() {
+            const opponentEl = document.getElementById('opponent-hand');
+            opponentEl.innerHTML = '';
+
+            const opponentHand = myPlayerId === 1 ? gameState.player2Hand : gameState.player1Hand;
+
+            opponentHand.forEach((card, index) => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card back';
+                cardEl.textContent = '🎴';
+                opponentEl.appendChild(cardEl);
+            });
+        }
+
+        /**
+         * 카드 요소 생성
+         * @param {string} cardType - 카드 타입
+         * @param {number} index - 카드 인덱스
+         * @param {string} location - 카드 위치 ('hand' 또는 'market')
+         * @returns {HTMLElement} 생성된 카드 DOM 요소
+         */
+        function createCardElement(cardType, index, location) {
+            const cardEl = document.createElement('div');
+            cardEl.className = 'card';
+            cardEl.textContent = CARD_EMOJI[cardType];
+            cardEl.dataset.index = index;
+            cardEl.dataset.location = location;
+
+            // 내 턴일 때만 카드 선택 가능
+            if (isMyTurn()) {
+                cardEl.onclick = () => toggleCardSelection(cardType, index, location);
+            } else {
+                cardEl.classList.add('disabled');
+            }
+
+            // 선택 상태 표시
+            if (gameState.selectedCards[location === 'hand' ? 'myHand' : 'market'].includes(index)) {
+                cardEl.classList.add('selected');
+            }
+
+            return cardEl;
+        }
+
+        /**
+         * 카드 선택/해제 토글
+         * @param {string} cardType - 카드 타입
+         * @param {number} index - 카드 인덱스
+         * @param {string} location - 카드 위치
+         */
+        function toggleCardSelection(cardType, index, location) {
+            if (!isMyTurn()) return;
+
+            const selectedArray = location === 'hand' ? gameState.selectedCards.myHand : gameState.selectedCards.market;
+            const indexPos = selectedArray.indexOf(index);
+
+            if (indexPos > -1) {
+                // 이미 선택된 카드면 해제
+                selectedArray.splice(indexPos, 1);
+            } else {
+                // 선택 추가
+                selectedArray.push(index);
+            }
+
+            renderGame();
+        }
+
+        /**
+         * 내 턴인지 확인
+         * @returns {boolean} 내 턴 여부
+         */
+        function isMyTurn() {
+            return gameState.currentTurn === myPlayerId;
+        }
+
+        /**
+         * 버튼 활성화/비활성화 업데이트
+         */
+        function updateButtonStates() {
+            const buttons = document.querySelectorAll('.action-btn');
+            const isEnabled = isMyTurn() && !gameState.gameOver;
+
+            buttons.forEach(btn => {
+                btn.disabled = !isEnabled;
+            });
+        }
+
+        // =============================================
+        // 게임 액션 처리
+        // =============================================
+
+        /**
+         * 카드 가져오기 (1장)
+         * - 시장에서 선택한 카드 1장을 손패로 가져옴
+         */
+        function takeCard() {
+            if (!isMyTurn() || gameState.actionTaken) {
+                alert('지금은 액션을 할 수 없습니다.');
+                return;
+            }
+
+            if (gameState.selectedCards.market.length !== 1) {
+                alert('시장 카드를 정확히 1장 선택해주세요.');
+                return;
+            }
+
+            const myHand = myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand;
+            
+            if (myHand.length >= 7) {
+                alert('손패가 가득 찼습니다! (최대 7장)');
+                return;
+            }
+
+            const action = {
+                type: 'take',
+                marketIndex: gameState.selectedCards.market[0]
+            };
+
+            if (isHost) {
+                executeTakeCard(action);
+            } else {
+                sendAction(action);
+            }
+        }
+
+        /**
+         * 카드 가져오기 실행 (Host)
+         * @param {Object} action - 액션 객체
+         */
+        function executeTakeCard(action) {
+            const playerId = isHost ? (gameState.currentTurn === 1 ? 'player1Hand' : 'player2Hand') : 
+                                      (gameState.currentTurn === 2 ? 'player2Hand' : 'player1Hand');
+            const hand = gameState[playerId];
+
+            // 시장에서 카드 가져오기
+            const card = gameState.market[action.marketIndex];
+            hand.push(card);
+
+            // 시장 보충
+            if (gameState.deck.length > 0) {
+                gameState.market[action.marketIndex] = gameState.deck.shift();
+            } else {
+                gameState.market.splice(action.marketIndex, 1);
+            }
+
+            // 선택 초기화 및 액션 완료 표시
+            gameState.selectedCards = { myHand: [], market: [] };
+            gameState.actionTaken = true;
+
+            sendGameState();
+            renderGame();
+        }
+
+        /**
+         * 카드 교환하기
+         * - 내 손패와 시장 카드를 동시에 교환
+         * - 같은 개수만큼 교환 가능
+         */
+        function exchangeCards() {
+            if (!isMyTurn() || gameState.actionTaken) {
+                alert('지금은 액션을 할 수 없습니다.');
+                return;
+            }
+
+            const myHandSelected = gameState.selectedCards.myHand.length;
+            const marketSelected = gameState.selectedCards.market.length;
+
+            if (myHandSelected === 0 || marketSelected === 0) {
+                alert('손패와 시장 카드를 모두 선택해주세요.');
+                return;
+            }
+
+            if (myHandSelected < 2) {
+                alert('최소 2장 이상 교환해야 합니다.');
+                return;
+            }
+
+            const myHand = myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand;
+            
+            if (myHand.length - myHandSelected + marketSelected > 7) {
+                alert('교환 후 손패가 7장을 초과할 수 없습니다.');
+                return;
+            }
+
+            const action = {
+                type: 'exchange',
+                handIndices: [...gameState.selectedCards.myHand].sort((a, b) => b - a),
+                marketIndices: [...gameState.selectedCards.market].sort((a, b) => b - a)
+            };
+
+            if (isHost) {
+                executeExchange(action);
+            } else {
+                sendAction(action);
+            }
+        }
+
+        /**
+         * 카드 교환 실행 (Host)
+         * @param {Object} action - 액션 객체
+         */
+        function executeExchange(action) {
+            const playerId = isHost ? (gameState.currentTurn === 1 ? 'player1Hand' : 'player2Hand') : 
+                                      (gameState.currentTurn === 2 ? 'player2Hand' : 'player1Hand');
+            const hand = gameState[playerId];
+
+            // 손패에서 제거할 카드
+            const removedFromHand = action.handIndices.map(i => hand[i]);
+            action.handIndices.forEach(i => hand.splice(i, 1));
+
+            // 시장에서 가져올 카드
+            const takenFromMarket = action.marketIndices.map(i => gameState.market[i]);
+            takenFromMarket.forEach(card => hand.push(card));
+
+            // 시장에 손패 카드 배치
+            action.marketIndices.forEach((marketIndex, i) => {
+                gameState.market[marketIndex] = removedFromHand[i];
+            });
+
+            // 선택 초기화 및 액션 완료
+            gameState.selectedCards = { myHand: [], market: [] };
+            gameState.actionTaken = true;
+
+            sendGameState();
+            renderGame();
+        }
+
+        /**
+         * 판매 모달 열기
+         */
+        function openSellModal() {
+            if (!isMyTurn() || gameState.actionTaken) {
+                alert('지금은 액션을 할 수 없습니다.');
+                return;
+            }
+
+            const myHand = myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand;
+
+            // 판매 가능한 상품 그룹 찾기
+            const goodsCounts = {};
+            myHand.forEach(card => {
+                if (card !== 'koala') {
+                    goodsCounts[card] = (goodsCounts[card] || 0) + 1;
+                }
+            });
+
+            const sellOptions = [];
+            for (const [goodType, count] of Object.entries(goodsCounts)) {
+                // 고가 상품은 2장 이상, 일반 상품은 1장 이상
+                const minCount = ['diamond', 'gold', 'silver'].includes(goodType) ? 2 : 1;
+                
+                if (count >= minCount) {
+                    // 판매 가능한 모든 조합 추가
+                    for (let i = minCount; i <= count; i++) {
+                        sellOptions.push({
+                            type: goodType,
+                            count: i,
+                            emoji: CARD_EMOJI[goodType]
+                        });
+                    }
+                }
+            }
+
+            if (sellOptions.length === 0) {
+                alert('판매할 수 있는 상품이 없습니다.\n(고가 상품은 2장 이상 필요)');
+                return;
+            }
+
+            // 모달에 옵션 표시
+            const optionsEl = document.getElementById('sell-options');
+            optionsEl.innerHTML = '';
+
+            sellOptions.forEach(option => {
+                const optionEl = document.createElement('div');
+                optionEl.className = 'sell-option';
+                optionEl.innerHTML = `
+                    <span>${option.emoji} ${option.count}장</span>
+                    <span>예상 점수: ${calculateSellPoints(option.type, option.count)}점</span>
+                `;
+                optionEl.onclick = () => sellGoods(option);
+                optionsEl.appendChild(optionEl);
+            });
+
+            document.getElementById('sell-modal').classList.add('active');
+        }
+
+        /**
+         * 판매 모달 닫기
+         */
+        function closeSellModal() {
+            document.getElementById('sell-modal').classList.remove('active');
+        }
+
+        /**
+         * 상품 판매하기
+         * @param {Object} option - 판매할 상품 정보
+         */
+        function sellGoods(option) {
+            closeSellModal();
+
+            const action = {
+                type: 'sell',
+                goodType: option.type,
+                count: option.count
+            };
+
+            if (isHost) {
+                executeSell(action);
+            } else {
+                sendAction(action);
+            }
+        }
+
+        /**
+         * 판매 실행 (Host)
+         * @param {Object} action - 액션 객체
+         */
+        function executeSell(action) {
+            const playerId = isHost ? (gameState.currentTurn === 1 ? 'player1Hand' : 'player2Hand') : 
+                                      (gameState.currentTurn === 2 ? 'player2Hand' : 'player1Hand');
+            const hand = gameState[playerId];
+            const scoreKey = playerId === 'player1Hand' ? 'player1Score' : 'player2Score';
+
+            // 손패에서 해당 상품 제거
+            let removed = 0;
+            for (let i = hand.length - 1; i >= 0 && removed < action.count; i--) {
+                if (hand[i] === action.goodType) {
+                    hand.splice(i, 1);
+                    removed++;
+                }
+            }
+
+            // 점수 계산
+            const points = calculateSellPoints(action.goodType, action.count);
+            gameState[scoreKey] += points;
+
+            // 선택 초기화 및 액션 완료
+            gameState.selectedCards = { myHand: [], market: [] };
+            gameState.actionTaken = true;
+
+            // 게임 종료 체크
+            checkGameOver();
+
+            sendGameState();
+            renderGame();
+        }
+
+        /**
+         * 판매 점수 계산
+         * @param {string} goodType - 상품 타입
+         * @param {number} count - 판매 개수
+         * @returns {number} 총 획득 점수
+         */
+        function calculateSellPoints(goodType, count) {
+            let points = 0;
+
+            // 토큰 점수 합산
+            const tokens = TOKEN_VALUES[goodType];
+            const availableTokens = gameState.tokens[goodType];
+            
+            for (let i = 0; i < Math.min(count, availableTokens); i++) {
+                points += tokens[tokens.length - availableTokens + i];
+            }
+
+            // 토큰 차감
+            gameState.tokens[goodType] = Math.max(0, availableTokens - count);
+
+            // 보너스 점수 추가
+            if (BONUS_POINTS[count]) {
+                points += BONUS_POINTS[count];
+            }
+
+            return points;
+        }
+
+        /**
+         * 코알라 몰이 (시장의 모든 코알라 가져오기)
+         */
+        function koalaRush() {
+            if (!isMyTurn() || gameState.actionTaken) {
+                alert('지금은 액션을 할 수 없습니다.');
+                return;
+            }
+
+            // 시장에서 코알라 개수 확인
+            const koalaCount = gameState.market.filter(c => c === 'koala').length;
+
+            if (koalaCount === 0) {
+                alert('시장에 코알라가 없습니다.');
+                return;
+            }
+
+            const myHand = myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand;
+
+            if (myHand.length + koalaCount > 7) {
+                alert('코알라를 모두 가져오면 손패가 7장을 초과합니다.');
+                return;
+            }
+
+            const action = { type: 'koalaRush' };
+
+            if (isHost) {
+                executeKoalaRush(action);
+            } else {
+                sendAction(action);
+            }
+        }
+
+        /**
+         * 코알라 몰이 실행 (Host)
+         * @param {Object} action - 액션 객체
+         */
+        function executeKoalaRush(action) {
+            const playerId = isHost ? (gameState.currentTurn === 1 ? 'player1Hand' : 'player2Hand') : 
+                                      (gameState.currentTurn === 2 ? 'player2Hand' : 'player1Hand');
+            const hand = gameState[playerId];
+
+            // 시장의 모든 코알라 가져오기
+            for (let i = gameState.market.length - 1; i >= 0; i--) {
+                if (gameState.market[i] === 'koala') {
+                    hand.push(gameState.market[i]);
+                    
+                    // 시장 보충
+                    if (gameState.deck.length > 0) {
+                        gameState.market[i] = gameState.deck.shift();
+                    } else {
+                        gameState.market.splice(i, 1);
+                    }
+                }
+            }
+
+            // 액션 완료
+            gameState.selectedCards = { myHand: [], market: [] };
+            gameState.actionTaken = true;
+
+            sendGameState();
+            renderGame();
+        }
+
+        /**
+         * 턴 종료
+         */
+        function endTurn() {
+            if (!isMyTurn()) {
+                alert('당신의 턴이 아닙니다.');
+                return;
+            }
+
+            if (!gameState.actionTaken) {
+                alert('액션을 먼저 수행해주세요.');
+                return;
+            }
+
+            const action = { type: 'endTurn' };
+
+            if (isHost) {
+                executeEndTurn(action);
+            } else {
+                sendAction(action);
+            }
+        }
+
+        /**
+         * 턴 종료 실행 (Host)
+         * @param {Object} action - 액션 객체
+         */
+        function executeEndTurn(action) {
+            // 턴 변경
+            gameState.currentTurn = gameState.currentTurn === 1 ? 2 : 1;
+            gameState.actionTaken = false;
+            gameState.selectedCards = { myHand: [], market: [] };
+
+            sendGameState();
+            renderGame();
+        }
+
+        /**
+         * Guest 액션 처리 (Host)
+         * @param {Object} action - Guest가 보낸 액션
+         */
+        function handleGuestAction(action) {
+            if (!isHost) return;
+
+            // 액션 타입별 처리
+            switch(action.type) {
+                case 'take':
+                    executeTakeCard(action);
+                    break;
+                case 'exchange':
+                    executeExchange(action);
+                    break;
+                case 'sell':
+                    executeSell(action);
+                    break;
+                case 'koalaRush':
+                    executeKoalaRush(action);
+                    break;
+                case 'endTurn':
+                    executeEndTurn(action);
+                    break;
+            }
+        }
+
+        /**
+         * 게임 종료 조건 체크
+         */
+        function checkGameOver() {
+            // 조건 1: 상품 토큰 3종 소진
+            const emptyTokens = Object.values(gameState.tokens).filter(v => v === 0).length;
+            if (emptyTokens >= 3) {
+                gameState.gameOver = true;
+                return;
+            }
+
+            // 조건 2: 덱 소진
+            if (gameState.deck.length === 0) {
+                gameState.gameOver = true;
+                return;
+            }
+        }
+
+        /**
+         * 게임 종료 화면 표시
+         */
+        function showGameOver() {
+            const gameBoard = document.querySelector('.game-board');
+            
+            // 승자 결정
+            let winner = '';
+            if (gameState.player1Score > gameState.player2Score) {
+                winner = '플레이어 1';
+                gameState.player1Seals++;
+            } else if (gameState.player2Score > gameState.player1Score) {
+                winner = '플레이어 2';
+                gameState.player2Seals++;
+            } else {
+                // 동점이면 상품 카드가 더 많은 플레이어
+                const p1Goods = gameState.player1Hand.filter(c => c !== 'koala').length;
+                const p2Goods = gameState.player2Hand.filter(c => c !== 'koala').length;
+                
+                if (p1Goods > p2Goods) {
+                    winner = '플레이어 1';
+                    gameState.player1Seals++;
+                } else if (p2Goods > p1Goods) {
+                    winner = '플레이어 2';
+                    gameState.player2Seals++;
+                } else {
+                    winner = '무승부';
+                }
+            }
+
+            const gameOverHtml = `
+                <div class="game-over">
+                    <h2>🎉 라운드 종료!</h2>
+                    <div class="winner">${winner === '무승부' ? '🤝 무승부!' : '🏆 ' + winner + ' 승리!'}</div>
+                    <p>플레이어 1: ${gameState.player1Score}점 (🏆 ${gameState.player1Seals}개)</p>
+                    <p>플레이어 2: ${gameState.player2Score}점 (🏆 ${gameState.player2Seals}개)</p>
+                    ${gameState.player1Seals >= 2 || gameState.player2Seals >= 2 ? 
+                        '<h2>🎊 최종 승자: ' + (gameState.player1Seals >= 2 ? '플레이어 1' : '플레이어 2') + '!</h2>' : 
+                        '<button class="btn btn-primary" onclick="location.reload()">다음 라운드</button>'}
+                </div>
+            `;
+
+            gameBoard.innerHTML += gameOverHtml;
+
+            if (isHost) {
+                sendGameState();
+            }
+        }
+
+        // =============================================
+        // 초기화
+        // =============================================
+        
+        console.log('🐨 Newsboy Koala Trader - Ready to play!');
+    </script>
+</body>
+</html>
