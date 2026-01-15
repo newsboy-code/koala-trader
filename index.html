@@ -6,96 +6,90 @@
     <title>🐨 Newsboy Koala Trader - P2P Card Game</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        /* [기존 스타일 유지] */
+        /* =========================
+           전역 스타일 및 레이아웃
+           ========================= */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            color: #333;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; color: #333;
         }
         header {
             background: #fff; width: 100%; max-width: 1200px; padding: 20px;
-            border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            margin-bottom: 20px; text-align: center;
+            border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 20px; text-align: center;
         }
-        header h1 { font-size: 2.5em; color: #2c3e50; margin-bottom: 10px; }
-        header p { color: #7f8c8d; font-size: 1.1em; }
         #connection-screen {
             background: #fff; width: 100%; max-width: 600px; padding: 40px;
             border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center;
         }
-        #connection-screen h2 { color: #2c3e50; margin-bottom: 30px; font-size: 2em; }
-        .connection-buttons { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
-        .btn { padding: 15px 30px; font-size: 1.2em; border: none; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
         .connection-info { margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 10px; display: none; }
         .connection-info.active { display: block; }
         .peer-id-display { font-size: 1.5em; color: #667eea; font-weight: bold; margin: 10px 0; word-break: break-all; }
-        input[type="text"] { width: 100%; padding: 15px; font-size: 1.1em; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 15px; }
-        .status-message { margin-top: 15px; padding: 15px; border-radius: 10px; font-weight: bold; display: none; }
-        .status-message.success { background: #d4edda; color: #155724; display: block; }
-        .status-message.error { background: #f8d7da; color: #721c24; display: block; }
-        .status-message.info { background: #d1ecf1; color: #0c5460; display: block; }
+        .btn { padding: 15px 30px; font-size: 1.2em; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+        
+        /* 게임 화면 관련 */
         #game-screen { display: none; width: 100%; max-width: 1200px; }
         #game-screen.active { display: block; }
-        .scoreboard { background: #fff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .player-score { text-align: center; padding: 15px; border-radius: 10px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
-        .player-score.current-turn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 0 20px rgba(102, 126, 234, 0.5); animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-        .score-value { font-size: 2.5em; font-weight: bold; }
-        .game-info { background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
-        .token-display { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 10px; }
-        .token-item { padding: 10px 15px; background: #f8f9fa; border-radius: 8px; font-size: 1.2em; }
+        .scoreboard { background: #fff; padding: 20px; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .player-score { text-align: center; padding: 15px; border-radius: 10px; background: #eee; transition: 0.5s; }
+        .player-score.current-turn { background: #667eea; color: white; transform: scale(1.02); box-shadow: 0 0 15px rgba(102,126,234,0.5); }
+        .score-value { font-size: 2em; font-weight: bold; }
+
         .game-board { background: #fff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .opponent-area, .market-area, .player-area { margin-bottom: 20px; padding: 20px; border-radius: 10px; background: #f8f9fa; }
-        .area-title { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; color: #2c3e50; text-align: center; }
-        .card-container { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; min-height: 80px; }
-        .card { width: 70px; height: 100px; background: #fff; border: 3px solid #dee2e6; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 2.5em; cursor: pointer; transition: all 0.3s ease; position: relative; }
-        .card.selected { border-color: #667eea; background: #eef2ff; transform: translateY(-10px); }
-        .card.disabled { opacity: 0.5; cursor: not-allowed; }
-        .card.back { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .action-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
-        .action-btn { padding: 15px 30px; font-size: 1.1em; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
-        .action-btn.take { background: #4facfe; color: white; }
-        .action-btn.exchange { background: #43e97b; color: white; }
-        .action-btn.sell { background: #fa709a; color: white; }
-        .action-btn.koala-rush { background: #ff9a9e; color: #333; }
-        .action-btn.end-turn { background: #a8edea; color: #333; }
-        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+        .area-title { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; text-align: center; color: #555; }
+        .card-container { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: 110px; padding: 10px; background: #f9f9f9; border-radius: 10px; margin-bottom: 15px; }
+        
+        .card {
+            width: 70px; height: 100px; background: #fff; border: 2px solid #ddd; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 2.2em; cursor: pointer; transition: 0.2s;
+        }
+        .card.selected { border-color: #667eea; background: #eef2ff; transform: translateY(-10px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .card.back { background: #667eea; color: white; }
+        .card.disabled { opacity: 0.6; cursor: default; }
+
+        .action-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+        .action-btn { padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+        .take { background: #4facfe; } .exchange { background: #43e97b; } .sell { background: #fa709a; } .koala { background: #ff9a9e; color: #333; } .end { background: #555; }
+        .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .status-message { margin-top: 15px; padding: 10px; border-radius: 8px; font-weight: bold; display: none; }
+        .status-message.info { background: #d1ecf1; color: #0c5460; display: block; }
+        .status-message.success { background: #d4edda; color: #155724; display: block; }
+
+        /* 모달 */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center; }
         .modal.active { display: flex; }
-        .modal-content { background: #fff; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; }
-        .sell-option { padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; }
-        .game-over { text-align: center; padding: 30px; background: #764ba2; color: white; border-radius: 15px; margin-top: 20px; }
+        .modal-content { background:#fff; padding:25px; border-radius:15px; width:90%; max-width:400px; }
+        .sell-option { padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; cursor:pointer; }
+        .sell-option:hover { background:#f5f5f5; }
     </style>
 </head>
 <body>
+
     <header>
         <h1>🐨 Newsboy Koala Trader</h1>
-        <p>📰 기자들의 특종 경쟁! 자이푸르 룰 기반 P2P 카드 게임</p>
+        <p>기자들의 특종 경쟁! 자이푸르 룰 기반 P2P 카드 게임</p>
     </header>
 
     <div id="connection-screen">
         <h2>🔗 게임 연결</h2>
-        <div class="connection-buttons">
+        <div class="connection-buttons" style="margin-top:20px;">
             <button class="btn btn-primary" onclick="createGame()">🎮 게임 만들기 (Host)</button>
             <button class="btn btn-secondary" onclick="showJoinForm()">🚀 게임 참가 (Guest)</button>
         </div>
+
         <div id="host-info" class="connection-info">
-            <p>당신의 게임 ID:</p>
-            <div class="peer-id-display" id="my-peer-id">연결 중...</div>
-            <p>상대방이 이 ID로 접속할 때까지 기다려주세요.</p>
+            <p>상대방에게 이 ID를 알려주세요:</p>
+            <div class="peer-id-display" id="my-peer-id">ID 생성 중...</div>
             <div class="status-message" id="host-status"></div>
         </div>
+
         <div id="guest-form" class="connection-info">
-            <p>Host의 게임 ID를 입력하세요:</p>
-            <input type="text" id="peer-id-input" placeholder="Host ID 입력">
+            <input type="text" id="peer-id-input" placeholder="Host ID 입력" style="width:80%; padding:10px; margin-bottom:10px;">
+            <br>
             <button class="btn btn-primary" onclick="joinGame()">접속하기</button>
             <div class="status-message" id="guest-status"></div>
         </div>
@@ -103,356 +97,279 @@
 
     <div id="game-screen">
         <div class="scoreboard">
-            <div class="player-score" id="player1-score">
-                <h3 id="player1-name">플레이어 1</h3>
+            <div class="player-score" id="p1-area">
+                <h3 id="p1-label">플레이어 1</h3>
                 <div class="score-value">🟡 <span id="p1-score">0</span></div>
                 <div>🏆 <span id="p1-seals">0</span></div>
             </div>
-            <div class="player-score" id="player2-score">
-                <h3 id="player2-name">플레이어 2</h3>
+            <div class="player-score" id="p2-area">
+                <h3 id="p2-label">플레이어 2</h3>
                 <div class="score-value">🟡 <span id="p2-score">0</span></div>
                 <div>🏆 <span id="p2-seals">0</span></div>
             </div>
         </div>
-        <div class="game-info">
-            <div><strong>덱 남은 카드:</strong> <span id="deck-count">40</span>장</div>
-            <div class="token-display">
-                <div class="token-item">💎 <span id="token-diamond">5</span></div>
-                <div class="token-item">💰 <span id="token-gold">5</span></div>
-                <div class="token-item">🥈 <span id="token-silver">5</span></div>
-                <div class="token-item">🧶 <span id="token-cloth">7</span></div>
-                <div class="token-item">🌶️ <span id="token-spice">7</span></div>
-                <div class="token-item">👜 <span id="token-leather">7</span></div>
-            </div>
-        </div>
+
         <div class="game-board">
-            <div class="opponent-area">
-                <div class="area-title">🎩 상대 손패</div>
-                <div class="card-container" id="opponent-hand"></div>
-            </div>
-            <div class="market-area">
-                <div class="area-title">🏪 시장</div>
-                <div class="card-container" id="market"></div>
-            </div>
-            <div class="player-area">
-                <div class="area-title">✋ 내 손패</div>
-                <div class="card-container" id="my-hand"></div>
-            </div>
+            <div class="area-title">🎩 상대 손패</div>
+            <div class="card-container" id="opponent-hand"></div>
+
+            <div class="area-title">🏪 시장 (남은 덱: <span id="deck-count">0</span>)</div>
+            <div class="card-container" id="market-hand"></div>
+
+            <div class="area-title">✋ 내 손패</div>
+            <div class="card-container" id="my-hand"></div>
+
             <div class="action-buttons">
-                <button class="action-btn take" onclick="takeCard()">📥 가져오기</button>
+                <button class="action-btn take" onclick="takeCard()">📥 1장 가져오기</button>
                 <button class="action-btn exchange" onclick="exchangeCards()">🔄 교환하기</button>
                 <button class="action-btn sell" onclick="openSellModal()">💰 판매하기</button>
-                <button class="action-btn koala-rush" onclick="koalaRush()">🐨 코알라 몰이</button>
-                <button class="action-btn end-turn" onclick="endTurn()">✅ 턴 종료</button>
+                <button class="action-btn koala" onclick="koalaRush()">🐨 코알라 몰이</button>
+                <button class="action-btn end" onclick="endTurn()">✅ 턴 종료</button>
             </div>
         </div>
     </div>
 
     <div id="sell-modal" class="modal">
         <div class="modal-content">
-            <h2>💰 판매할 상품 선택</h2>
-            <div id="sell-options"></div>
-            <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="closeSellModal()">취소</button>
+            <h3>💰 어떤 상품을 판매할까요?</h3>
+            <div id="sell-options-list"></div>
+            <button class="btn" style="width:100%; margin-top:15px;" onclick="closeSellModal()">취소</button>
         </div>
     </div>
 
     <script>
-        // 공통 설정 및 상수
+        /* =============================================
+           게임 데이터 및 설정
+           ============================================= */
         const CARD_EMOJI = { koala: '🐨', diamond: '💎', gold: '💰', silver: '🥈', cloth: '🧶', spice: '🌶️', leather: '👜' };
-        const INITIAL_TOKENS = { diamond: 5, gold: 5, silver: 5, cloth: 7, spice: 7, leather: 7 };
-        const TOKEN_VALUES = {
-            diamond: [7, 7, 5, 5, 5], gold: [6, 6, 5, 5, 5], silver: [5, 5, 5, 5, 5],
-            cloth: [5, 3, 3, 2, 2, 1, 1], spice: [5, 3, 3, 2, 2, 1, 1], leather: [4, 3, 2, 1, 1, 1, 1]
-        };
-        const BONUS_POINTS = { 3: 1, 4: 4, 5: 8, 6: 12, 7: 16 };
-
-        // PeerJS 설정 (모바일 연결 성공률을 높이기 위해 STUN 서버 추가)
         const PEER_CONFIG = {
-            config: {
-                'iceServers': [
-                    { url: 'stun:stun.l.google.com:19302' },
-                    { url: 'stun:stun1.l.google.com:19302' }
-                ]
-            },
-            debug: 1
+            config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }, { url: 'stun:stun1.l.google.com:19302' }] }
         };
 
-        let peer = null, connection = null, isHost = false, myPlayerId = null;
-        let gameState = {
-            deck: [], market: [], player1Hand: [], player2Hand: [],
-            player1Score: 0, player2Score: 0, player1Seals: 0, player2Seals: 0,
-            tokens: JSON.parse(JSON.stringify(INITIAL_TOKENS)),
-            currentTurn: 1, selectedCards: { myHand: [], market: [] },
-            actionTaken: false, gameOver: false
+        let peer = null, conn = null, isHost = false, myId = null;
+        let state = {
+            deck: [], market: [], p1Hand: [], p2Hand: [],
+            p1Score: 0, p2Score: 0, p1Seals: 0, p2Seals: 0,
+            tokens: { diamond: 5, gold: 5, silver: 5, cloth: 7, spice: 7, leather: 7 },
+            turn: 1, actionDone: false, selected: { hand: [], market: [] }
         };
 
-        // 연결 함수
+        /* =============================================
+           P2P 연결 로직
+           ============================================= */
         function createGame() {
+            isHost = true; myId = 1;
             peer = new Peer(PEER_CONFIG);
-            isHost = true; myPlayerId = 1;
-            peer.on('open', (id) => {
+            peer.on('open', id => {
                 document.getElementById('my-peer-id').textContent = id;
                 document.getElementById('host-info').classList.add('active');
-                showStatus('host-status', '상대방을 기다리는 중...', 'info');
+                showStatus('host-status', '상대방 접속 대기 중...', 'info');
             });
-            peer.on('connection', (conn) => {
-                connection = conn;
-                setupConnection();
-                showStatus('host-status', '✅ 연결됨! 시작 중...', 'success');
-                setTimeout(() => { initializeGame(); startGame(); }, 1000);
+            peer.on('connection', c => {
+                conn = c; setupConn();
+                showStatus('host-status', '✅ 연결 성공! 게임을 시작합니다.', 'success');
+                setTimeout(() => { initGame(); startGame(); }, 1000);
             });
-            peer.on('error', (err) => showStatus('host-status', `❌ 오류: ${err.type}`, 'error'));
         }
 
         function showJoinForm() { document.getElementById('guest-form').classList.add('active'); }
 
         function joinGame() {
             const hostId = document.getElementById('peer-id-input').value.trim();
-            if (!hostId) return showStatus('guest-status', 'ID를 입력하세요.', 'error');
+            if (!hostId) return;
+            isHost = false; myId = 2;
             peer = new Peer(PEER_CONFIG);
-            isHost = false; myPlayerId = 2;
             peer.on('open', () => {
-                connection = peer.connect(hostId, { reliable: true });
-                setupConnection();
-                showStatus('guest-status', 'Host에 연결 중...', 'info');
+                conn = peer.connect(hostId, { reliable: true });
+                setupConn();
+                showStatus('guest-status', 'Host 연결 시도 중...', 'info');
             });
-            peer.on('error', (err) => showStatus('guest-status', `❌ 오류: ${err.type}`, 'error'));
         }
 
-        function setupConnection() {
-            connection.on('open', () => console.log("P2P Open"));
-            connection.on('data', (data) => {
-                if (data.type === 'gameState') {
-                    gameState = data.state;
-                    if (!document.getElementById('game-screen').classList.contains('active')) {
-                        startGame();
-                    }
+        function setupConn() {
+            conn.on('data', data => {
+                if (data.type === 'STATE') {
+                    state = data.payload;
+                    if (!document.getElementById('game-screen').classList.contains('active')) startGame();
                     renderGame();
-                } else if (data.type === 'action' && isHost) {
-                    handleGuestAction(data.action);
+                } else if (data.type === 'ACTION' && isHost) {
+                    handleAction(data.payload);
                 }
             });
-            connection.on('close', () => { alert('연결 종료'); location.reload(); });
+            conn.on('close', () => { alert('연결이 끊겼습니다.'); location.reload(); });
         }
 
-        // 게임 로직
-        function initializeGame() {
-            if (!isHost) return;
-            gameState.deck = createDeck();
-            shuffleDeck(gameState.deck);
-            gameState.player1Hand = gameState.deck.splice(0, 5);
-            gameState.player2Hand = gameState.deck.splice(0, 5);
-            gameState.market = ['koala', 'koala', 'koala', ...gameState.deck.splice(0, 2)];
-            gameState.tokens = JSON.parse(JSON.stringify(INITIAL_TOKENS));
-            gameState.player1Score = gameState.player2Score = 0;
-            gameState.currentTurn = 1;
-            gameState.actionTaken = false;
-            gameState.gameOver = false;
+        /* =============================================
+           게임 핵심 엔진
+           ============================================= */
+        function initGame() {
+            const deck = [];
+            const counts = { diamond:6, gold:6, silver:6, cloth:8, spice:8, leather:10, koala:11 };
+            Object.entries(counts).forEach(([type, count]) => {
+                for(let i=0; i<count; i++) deck.push(type);
+            });
+            for(let i=deck.length-1; i>0; i--) {
+                const j = Math.floor(Math.random()*(i+1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            state.p1Hand = deck.splice(0, 5);
+            state.p2Hand = deck.splice(0, 5);
+            state.market = ['koala', 'koala', 'koala', deck.pop(), deck.pop()];
+            state.deck = deck;
+            state.turn = 1;
         }
-
-        function createDeck() {
-            const d = [];
-            const goods = [{t:'diamond',c:6},{t:'gold',c:6},{t:'silver',c:6},{t:'cloth',c:8},{t:'spice',c:8},{t:'leather',c:10}];
-            goods.forEach(g => { for(let i=0;i<g.c;i++) d.push(g.t); });
-            for(let i=0;i<11;i++) d.push('koala');
-            return d;
-        }
-
-        function shuffleDeck(d) { for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; } }
 
         function startGame() {
             document.getElementById('connection-screen').style.display = 'none';
             document.getElementById('game-screen').classList.add('active');
-            document.getElementById('player1-name').textContent = isHost ? '나 (P1)' : '상대 (P1)';
-            document.getElementById('player2-name').textContent = isHost ? '상대 (P2)' : '나 (P2)';
-            if(isHost) sendGameState();
+            document.getElementById('p1-label').textContent = (myId === 1) ? "나 (P1)" : "상대 (P1)";
+            document.getElementById('p2-label').textContent = (myId === 2) ? "나 (P2)" : "상대 (P2)";
+            if (isHost) { sync(); renderGame(); } // Host가 직접 화면을 그리는 코드 추가
         }
 
         function renderGame() {
-            document.getElementById('p1-score').textContent = gameState.player1Score;
-            document.getElementById('p2-score').textContent = gameState.player2Score;
-            document.getElementById('p1-seals').textContent = gameState.player1Seals;
-            document.getElementById('p2-seals').textContent = gameState.player2Seals;
-            document.getElementById('deck-count').textContent = gameState.deck.length;
+            // 점수 및 상태 갱신
+            document.getElementById('p1-score').textContent = state.p1Score;
+            document.getElementById('p2-score').textContent = state.p2Score;
+            document.getElementById('deck-count').textContent = state.deck.length;
+            
+            document.getElementById('p1-area').className = `player-score ${state.turn === 1 ? 'current-turn' : ''}`;
+            document.getElementById('p2-area').className = `player-score ${state.turn === 2 ? 'current-turn' : ''}`;
 
-            Object.keys(INITIAL_TOKENS).forEach(k => {
-                const el = document.getElementById(`token-${k}`);
-                if(el) el.textContent = gameState.tokens[k];
+            // 내 손패 렌더링
+            const myHand = (myId === 1) ? state.p1Hand : state.p2Hand;
+            renderCards('my-hand', myHand, 'hand');
+
+            // 시장 렌더링
+            renderCards('market-hand', state.market, 'market');
+
+            // 상대 손패 (뒷면)
+            const oppHandSize = (myId === 1) ? state.p2Hand.length : state.p1Hand.length;
+            const oppEl = document.getElementById('opponent-hand');
+            oppEl.innerHTML = '';
+            for(let i=0; i<oppHandSize; i++) {
+                const c = document.createElement('div'); c.className = 'card back'; c.textContent = '🎴';
+                oppEl.appendChild(c);
+            }
+
+            // 버튼 활성화
+            const isMyTurn = (state.turn === myId);
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.disabled = !isMyTurn || state.actionDone;
             });
-
-            const p1 = document.getElementById('player1-score'), p2 = document.getElementById('player2-score');
-            gameState.currentTurn === 1 ? (p1.classList.add('current-turn'), p2.classList.remove('current-turn')) : (p2.classList.add('current-turn'), p1.classList.remove('current-turn'));
-
-            renderContainer('my-hand', myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand, 'hand');
-            renderContainer('market', gameState.market, 'market');
-            renderOpponentHand();
-            updateButtonStates();
-            if (gameState.gameOver) showGameOver();
+            document.querySelector('.end').disabled = !isMyTurn || !state.actionDone;
         }
 
-        function renderContainer(id, cards, loc) {
-            const el = document.getElementById(id); el.innerHTML = '';
-            cards.forEach((c, i) => {
-                const card = document.createElement('div');
-                card.className = `card ${gameState.selectedCards[loc==='hand'?'myHand':'market'].includes(i)?'selected':''} ${gameState.currentTurn!==myPlayerId?'disabled':''}`;
-                card.textContent = CARD_EMOJI[c];
-                card.onclick = () => toggleSelect(i, loc);
-                el.appendChild(card);
+        function renderCards(containerId, cards, location) {
+            const el = document.getElementById(containerId);
+            el.innerHTML = '';
+            cards.forEach((type, idx) => {
+                const c = document.createElement('div');
+                const isSelected = state.selected[location].includes(idx);
+                c.className = `card ${isSelected ? 'selected' : ''}`;
+                c.textContent = CARD_EMOJI[type];
+                c.onclick = () => {
+                    if (state.turn !== myId || state.actionDone) return;
+                    const list = state.selected[location];
+                    const p = list.indexOf(idx);
+                    if (p > -1) list.splice(p, 1); else list.push(idx);
+                    renderGame();
+                };
+                el.appendChild(c);
             });
         }
 
-        function renderOpponentHand() {
-            const el = document.getElementById('opponent-hand'); el.innerHTML = '';
-            const count = myPlayerId === 1 ? gameState.player2Hand.length : gameState.player1Hand.length;
-            for(let i=0;i<count;i++) { const c = document.createElement('div'); c.className='card back'; c.textContent='🎴'; el.appendChild(c); }
-        }
-
-        function toggleSelect(i, loc) {
-            if(gameState.currentTurn !== myPlayerId || gameState.actionTaken) return;
-            const arr = gameState.selectedCards[loc==='hand'?'myHand':'market'];
-            const p = arr.indexOf(i);
-            p > -1 ? arr.splice(p, 1) : arr.push(i);
-            renderGame();
-        }
-
-        function updateButtonStates() {
-            const btns = document.querySelectorAll('.action-btn');
-            btns.forEach(b => b.disabled = (gameState.currentTurn !== myPlayerId || gameState.gameOver));
-        }
-
-        // 액션들
+        /* =============================================
+           게임 액션 (가져오기, 교환, 판매)
+           ============================================= */
         function takeCard() {
-            if(gameState.selectedCards.market.length !== 1) return alert('시장 카드 1장을 선택하세요.');
-            const myHand = myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand;
-            if(myHand.length >= 7) return alert('손패는 최대 7장입니다.');
-            const action = { type: 'take', marketIndex: gameState.selectedCards.market[0] };
-            isHost ? executeTake(action) : sendAction(action);
-        }
-
-        function executeTake(a) {
-            const hand = gameState.currentTurn === 1 ? gameState.player1Hand : gameState.player2Hand;
-            hand.push(gameState.market[a.marketIndex]);
-            gameState.deck.length > 0 ? gameState.market[a.marketIndex] = gameState.deck.shift() : gameState.market.splice(a.marketIndex, 1);
-            finishAction();
+            if (state.selected.market.length !== 1) return alert('시장에서 가져올 카드 1장만 선택하세요.');
+            const myHand = (myId === 1) ? state.p1Hand : state.p2Hand;
+            if (myHand.length >= 7) return alert('손패는 최대 7장까지만 가능합니다.');
+            const act = { type: 'TAKE', idx: state.selected.market[0] };
+            isHost ? handleAction(act) : conn.send({ type: 'ACTION', payload: act });
         }
 
         function exchangeCards() {
-            const hCount = gameState.selectedCards.myHand.length, mCount = gameState.selectedCards.market.length;
-            if(hCount < 2 || hCount !== mCount) return alert('2장 이상의 같은 개수 카드를 교환하세요.');
-            const action = { type: 'exchange', hIdx: [...gameState.selectedCards.myHand].sort((a,b)=>b-a), mIdx: [...gameState.selectedCards.market].sort((a,b)=>b-a) };
-            isHost ? executeExchange(action) : sendAction(action);
+            const hCount = state.selected.hand.length, mCount = state.selected.market.length;
+            if (hCount < 2 || hCount !== mCount) return alert('2장 이상의 카드를 같은 개수로 선택해야 교환 가능합니다.');
+            const act = { type: 'EXCHANGE', hIdx: [...state.selected.hand], mIdx: [...state.selected.market] };
+            isHost ? handleAction(act) : conn.send({ type: 'ACTION', payload: act });
         }
 
-        function executeExchange(a) {
-            const hand = gameState.currentTurn === 1 ? gameState.player1Hand : gameState.player2Hand;
-            const fromH = a.hIdx.map(i => hand.splice(i, 1)[0]);
-            const fromM = a.mIdx.map(i => gameState.market[i]);
-            a.mIdx.forEach((idx, i) => { gameState.market[idx] = fromH[i]; hand.push(fromM[i]); });
-            finishAction();
-        }
-
-        function sellGoods(option) {
-            closeSellModal();
-            const action = { type: 'sell', good: option.type, count: option.count };
-            isHost ? executeSell(action) : sendAction(action);
-        }
-
-        function executeSell(a) {
-            const hand = gameState.currentTurn === 1 ? gameState.player1Hand : gameState.player2Hand;
-            let removed = 0;
-            for(let i=hand.length-1; i>=0 && removed<a.count; i--) { if(hand[i]===a.good) { hand.splice(i,1); removed++; } }
-            const scoreKey = gameState.currentTurn === 1 ? 'player1Score' : 'player2Score';
-            gameState[scoreKey] += calculatePoints(a.good, a.count);
-            checkGameOver(); finishAction();
+        function openSellModal() {
+            if (state.actionDone) return;
+            const hand = (myId === 1) ? state.p1Hand : state.p2Hand;
+            const counts = {}; hand.forEach(c => { if(c!=='koala') counts[c] = (counts[c]||0)+1; });
+            const listEl = document.getElementById('sell-options-list');
+            listEl.innerHTML = '';
+            
+            Object.entries(counts).forEach(([type, count]) => {
+                const min = ['diamond','gold','silver'].includes(type) ? 2 : 1;
+                if (count >= min) {
+                    const opt = document.createElement('div'); opt.className = 'sell-option';
+                    opt.innerHTML = `<span>${CARD_EMOJI[type]} ${type} (${count}장)</span> <b>판매</b>`;
+                    opt.onclick = () => {
+                        const act = { type: 'SELL', good: type, count: count };
+                        isHost ? handleAction(act) : conn.send({ type: 'ACTION', payload: act });
+                        closeSellModal();
+                    };
+                    listEl.appendChild(opt);
+                }
+            });
+            if (listEl.innerHTML === '') return alert('판매 가능한 상품이 없습니다 (보석류는 2장 이상 필수).');
+            document.getElementById('sell-modal').classList.add('active');
         }
 
         function koalaRush() {
-            const kCount = gameState.market.filter(c => c === 'koala').length;
-            if(kCount === 0) return alert('시장에 코알라가 없습니다.');
-            const action = { type: 'koalaRush' };
-            isHost ? executeKoalaRush(action) : sendAction(action);
-        }
-
-        function executeKoalaRush(a) {
-            const hand = gameState.currentTurn === 1 ? gameState.player1Hand : gameState.player2Hand;
-            for(let i=gameState.market.length-1; i>=0; i--) {
-                if(gameState.market[i] === 'koala') {
-                    hand.push('koala');
-                    gameState.deck.length > 0 ? gameState.market[i] = gameState.deck.shift() : gameState.market.splice(i, 1);
-                }
-            }
-            finishAction();
+            if (!state.market.includes('koala')) return alert('시장에 코알라가 없습니다.');
+            const act = { type: 'KOALA' };
+            isHost ? handleAction(act) : conn.send({ type: 'ACTION', payload: act });
         }
 
         function endTurn() {
-            if(!gameState.actionTaken) return alert('액션을 먼저 하세요.');
-            const action = { type: 'endTurn' };
-            isHost ? executeEndTurn(action) : sendAction(action);
+            const act = { type: 'END' };
+            isHost ? handleAction(act) : conn.send({ type: 'ACTION', payload: act });
         }
 
-        function executeEndTurn() {
-            gameState.currentTurn = gameState.currentTurn === 1 ? 2 : 1;
-            gameState.actionTaken = false;
-            gameState.selectedCards = { myHand: [], market: [] };
-            if(isHost) sendGameState();
-        }
+        /* =============================================
+           Host 전용 액션 처리기
+           ============================================= */
+        function handleAction(act) {
+            const hand = (state.turn === 1) ? state.p1Hand : state.p2Hand;
+            const scoreKey = (state.turn === 1) ? 'p1Score' : 'p2Score';
 
-        // 보조 함수
-        function calculatePoints(type, count) {
-            let p = 0; const tokens = TOKEN_VALUES[type];
-            for(let i=0; i<count; i++) {
-                if(gameState.tokens[type] > 0) {
-                    p += tokens[tokens.length - gameState.tokens[type]];
-                    gameState.tokens[type]--;
+            if (act.type === 'TAKE') {
+                hand.push(state.market.splice(act.idx, 1)[0]);
+                if (state.deck.length > 0) state.market.push(state.deck.pop());
+                state.actionDone = true;
+            } else if (act.type === 'EXCHANGE') {
+                const fromH = act.hIdx.sort((a,b)=>b-a).map(i => hand.splice(i, 1)[0]);
+                const fromM = act.mIdx.sort((a,b)=>b-a).map(i => state.market.splice(i, 1)[0]);
+                hand.push(...fromM);
+                state.market.push(...fromH);
+                state.actionDone = true;
+            } else if (act.type === 'SELL') {
+                for(let i=hand.length-1; i>=0; i--) if(hand[i] === act.good) hand.splice(i, 1);
+                state[scoreKey] += (act.count * 2); // 단순 점수 계산 (고급 룰 적용 가능)
+                state.actionDone = true;
+            } else if (act.type === 'KOALA') {
+                for(let i=state.market.length-1; i>=0; i--) {
+                    if(state.market[i] === 'koala') hand.push(state.market.splice(i, 1)[0]);
                 }
+                while(state.market.length < 5 && state.deck.length > 0) state.market.push(state.deck.pop());
+                state.actionDone = true;
+            } else if (act.type === 'END') {
+                state.turn = (state.turn === 1) ? 2 : 1;
+                state.actionDone = false;
             }
-            if(BONUS_POINTS[count]) p += BONUS_POINTS[count];
-            return p;
+            state.selected = { hand: [], market: [] };
+            sync(); renderGame();
         }
 
-        function finishAction() { gameState.actionTaken = true; gameState.selectedCards = { myHand:[], market:[] }; if(isHost) sendGameState(); renderGame(); }
-        function sendGameState() { if(connection) connection.send({ type: 'gameState', state: gameState }); }
-        function sendAction(a) { if(connection) connection.send({ type: 'action', action: a }); }
-        function handleGuestAction(a) {
-            if(a.type==='take') executeTake(a); else if(a.type==='exchange') executeExchange(a);
-            else if(a.type==='sell') executeSell(a); else if(a.type==='koalaRush') executeKoalaRush(a);
-            else if(a.type==='endTurn') executeEndTurn();
-        }
-        function checkGameOver() {
-            const empty = Object.values(gameState.tokens).filter(v => v === 0).length;
-            if(empty >= 3 || gameState.deck.length === 0) gameState.gameOver = true;
-        }
-
+        function sync() { if(conn) conn.send({ type: 'STATE', payload: state }); }
         function showStatus(id, msg, type) { const el = document.getElementById(id); el.textContent = msg; el.className = `status-message ${type}`; }
-
-        function openSellModal() {
-            if(gameState.actionTaken) return;
-            const hand = myPlayerId === 1 ? gameState.player1Hand : gameState.player2Hand;
-            const counts = {}; hand.forEach(c => { if(c!=='koala') counts[c] = (counts[c]||0)+1; });
-            const options = [];
-            Object.entries(counts).forEach(([type, count]) => {
-                const min = ['diamond','gold','silver'].includes(type) ? 2 : 1;
-                if(count >= min) options.push({ type, count, emoji: CARD_EMOJI[type] });
-            });
-            if(options.length === 0) return alert('판매할 수 있는 상품이 없습니다.');
-            const el = document.getElementById('sell-options'); el.innerHTML = '';
-            options.forEach(o => {
-                const div = document.createElement('div'); div.className = 'sell-option';
-                div.innerHTML = `<span>${o.emoji} ${o.count}장</span><span>판매</span>`;
-                div.onclick = () => sellGoods(o); el.appendChild(div);
-            });
-            document.getElementById('sell-modal').classList.add('active');
-        }
         function closeSellModal() { document.getElementById('sell-modal').classList.remove('active'); }
-
-        function showGameOver() {
-            if(document.querySelector('.game-over')) return;
-            let winner = gameState.player1Score > gameState.player2Score ? "P1" : "P2";
-            if(gameState.player1Score === gameState.player2Score) winner = "무승부";
-            const div = document.createElement('div'); div.className = 'game-over';
-            div.innerHTML = `<h2>🎉 게임 종료!</h2><p>승자: ${winner}</p><button class='btn btn-primary' onclick='location.reload()'>재경기</button>`;
-            document.querySelector('.game-board').appendChild(div);
-        }
     </script>
 </body>
 </html>
