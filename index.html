@@ -6,7 +6,6 @@
     <title>🐨 Newsboy Koala Trader - P2P Card Game</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        /* [기자님의 UI 디자인 유지] */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -63,6 +62,7 @@
         .modal.active { display: flex; }
         .modal-content { background: #fff; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; }
         .sell-option { padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; }
+        .sell-option:hover { background: #e9ecef; }
         .game-over { text-align: center; padding: 30px; background: #667eea; color: white; border-radius: 15px; margin-top: 20px; }
     </style>
 </head>
@@ -168,7 +168,7 @@
             actionTaken: false, gameOver: false
         };
 
-        /* --- [강화] PeerJS 설정 및 P2P 통신 --- */
+        /* --- PeerJS 설정 및 P2P 통신 --- */
         const peerConfig = {
             host: '0.peerjs.com', port: 443, path: '/', secure: true,
             config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
@@ -186,7 +186,6 @@
                 connection = conn;
                 setupConnection();
                 showStatus('host-status', '✅ 상대방 연결 성공! 잠시 후 게임이 시작됩니다.', 'success');
-                // [수정] 모바일 기기가 준비될 시간을 주기 위해 1.5초 대기 후 시작
                 setTimeout(() => { initializeGame(); startGame(); }, 1500);
             });
         }
@@ -211,8 +210,7 @@
                 console.log('P2P 통로 개설 완료');
                 if (!isHost) {
                     showStatus('guest-status', '✅ 연결 성공! 데이터를 기다리고 있습니다...', 'success');
-                    // 게스트가 연결되면 호스트에게 수동으로 데이터를 한 번 더 요청 (안정성)
-                    setTimeout(() => { if(!gameState.actionTaken) sendAction({type:'requestSync'}); }, 2000);
+                    setTimeout(() => { if(!gameState.deck.length) sendAction({type:'requestSync'}); }, 2000);
                 }
             });
             connection.on('data', handleReceivedData);
@@ -257,6 +255,7 @@
             gameState.tokens = JSON.parse(JSON.stringify(INITIAL_TOKENS));
             gameState.currentTurn = 1;
             gameState.actionTaken = false;
+            gameState.selectedCards = { myHand: [], market: [] };
         }
 
         function startGame() {
@@ -342,7 +341,8 @@
             const hand = gameState.currentTurn === 1 ? gameState.player1Hand : gameState.player2Hand;
             hand.push(gameState.market.splice(act.marketIndex, 1)[0]);
             if(gameState.deck.length > 0) gameState.market.splice(act.marketIndex, 0, gameState.deck.shift());
-            finishAction();
+            clearSelections();
+            finishAction('take');
         }
 
         function exchangeCards() {
@@ -359,7 +359,8 @@
             const fromMarket = act.marketIndices.map(i => gameState.market.splice(i, 1)[0]);
             act.marketIndices.reverse().forEach((mi, i) => gameState.market.splice(mi, 0, fromHand[i]));
             fromMarket.forEach(c => hand.push(c));
-            finishAction();
+            clearSelections();
+            finishAction('exchange');
         }
 
         function koalaRush() {
@@ -377,7 +378,8 @@
                     if(gameState.deck.length > 0) gameState.market.splice(i, 0, gameState.deck.shift());
                 }
             }
-            finishAction();
+            clearSelections();
+            finishAction('koalaRush');
         }
 
         function openSellModal() {
@@ -420,16 +422,34 @@
             gameState[scoreKey] += pts;
             
             checkGameOver();
-            finishAction();
+            clearSelections();
+            finishAction('sell');
         }
 
-        function endTurn() { const act = { type: 'endTurn' }; isHost ? executeEndTurn() : sendAction(act); }
-        function executeEndTurn() { gameState.currentTurn = (gameState.currentTurn === 1 ? 2 : 1); gameState.actionTaken = false; finishAction(); }
+        function endTurn() { 
+            const act = { type: 'endTurn' }; 
+            isHost ? executeEndTurn() : sendAction(act); 
+        }
         
-        function finishAction() {
+        function executeEndTurn() { 
+            gameState.currentTurn = (gameState.currentTurn === 1 ? 2 : 1); 
+            gameState.actionTaken = false; 
+            clearSelections();
+            finishAction('endTurn'); 
+        }
+        
+        function clearSelections() {
+            gameState.selectedCards = { myHand: [], market: [] };
+        }
+        
+        function finishAction(actionType) {
             if(isHost) {
-                if(gameState.actionTaken === false && !['endTurn','requestSync'].includes(arguments[0]?.type)) gameState.actionTaken = true;
-                sendGameState(); renderGame();
+                // 턴 종료가 아닌 일반 행동일 경우만 actionTaken을 true로
+                if(actionType !== 'endTurn' && actionType !== 'requestSync') {
+                    gameState.actionTaken = true;
+                }
+                sendGameState(); 
+                renderGame();
             }
         }
 
@@ -447,9 +467,14 @@
         }
 
         function showGameOver() {
-            const win = gameState.player1Score > gameState.player2Score ? '플레이어 1' : '플레이어 2';
+            const win = gameState.player1Score > gameState.player2Score ? '플레이어 1' : 
+                        gameState.player2Score > gameState.player1Score ? '플레이어 2' : '무승부';
+            const winnerName = win === '플레이어 1' ? 
+                (isHost ? '나 (Host)' : '상대 (Host)') : 
+                win === '플레이어 2' ? 
+                (isHost ? '상대 (Guest)' : '나 (Guest)') : '무승부';
             if(isHost) gameState.gameOver = true;
-            alert(`게임 종료! 승자: ${win}`);
+            alert(`🎉 게임 종료!\n\n승자: ${winnerName}\n플레이어 1: ${gameState.player1Score}점\n플레이어 2: ${gameState.player2Score}점`);
         }
     </script>
 </body>
